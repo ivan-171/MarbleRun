@@ -37,10 +37,51 @@ function loadGame() {
       };
     }
     parsed.settings ??= { camera: 'auto', speed: 1, quality: 'auto' };
+    // v0.1.1 stores complete race tables and championship snapshots in
+    // history. Recover both for already-completed races in the current season.
+    migrateCurrentSeasonHistory(parsed);
     return parsed;
   } catch (err) {
     console.warn('Could not load save; creating a new one.', err);
     return createNewSave();
+  }
+}
+
+
+function migrateCurrentSeasonHistory(parsed) {
+  const historyByRound = new Map((parsed.history ?? [])
+    .filter(h => h.season === parsed.season)
+    .map(h => [h.round, h]));
+  const acc = new Map((parsed.marbles ?? []).map(m => [m.id, {
+    id: m.id, points: 0, wins: 0, podiums: 0, bestFinish: null,
+  }]));
+
+  const completed = [...(parsed.schedule ?? [])]
+    .filter(e => e.completed && Array.isArray(e.results))
+    .sort((a, b) => a.round - b.round);
+
+  for (const event of completed) {
+    const h = historyByRound.get(event.round);
+    if (h && !h.results) h.results = event.results.map(r => ({ ...r }));
+    const format = FORMATS[event.format] ?? FORMATS.classic;
+    event.results.forEach((r, idx) => {
+      const row = acc.get(r.id);
+      if (!row) return;
+      const finish = idx + 1;
+      row.points += format.points[idx] ?? 0;
+      if (finish === 1) row.wins += 1;
+      if (finish <= 3) row.podiums += 1;
+      if (!row.bestFinish || finish < row.bestFinish) row.bestFinish = finish;
+    });
+    if (h && !h.standings) {
+      const ordered = [...acc.values()].sort((a, b) => {
+        if (b.points !== a.points) return b.points - a.points;
+        if (b.wins !== a.wins) return b.wins - a.wins;
+        if (b.podiums !== a.podiums) return b.podiums - a.podiums;
+        return (a.bestFinish ?? 999) - (b.bestFinish ?? 999);
+      });
+      h.standings = ordered.map((r, idx) => ({ ...r, position: idx + 1 }));
+    }
   }
 }
 
@@ -284,10 +325,47 @@ function renderMarbles() {
 
 function renderHistory() {
   const list = save.history;
-  $('#historyList').innerHTML = list.length ? list.map(h => {
-    const podium = h.podium.map((r, i) => `${i + 1}. ${esc(marbleById(r.id)?.name ?? r.id)}`).join(' · ');
-    return `<div class="history-card"><div><span>S${h.season} · R${h.round} · ${esc(formatLabel(h.format))}</span><b>${esc(h.title)}</b><small>${podium}</small></div><code>${esc(h.seed)}</code></div>`;
+  $('#historyList').innerHTML = list.length ? list.map((h, index) => {
+    const podium = (h.podium ?? h.results?.slice(0, 3) ?? []).map((r, i) => `${i + 1}. ${esc(marbleById(r.id)?.name ?? r.id)}`).join(' · ');
+    return `<button class="history-card" data-history-index="${index}"><div><span>S${h.season} · R${h.round} · ${esc(formatLabel(h.format))}</span><b>${esc(h.title)}</b><small>${podium || 'Race complete'}</small><em>VIEW FULL TABLE →</em></div><code>${esc(h.seed)}</code></button>`;
   }).join('') : '<div class="empty">Your race history will appear here.</div>';
+  $$('[data-history-index]', $('#historyList')).forEach(btn => btn.addEventListener('click', () => openHistory(Number(btn.dataset.historyIndex))));
+}
+
+function historyRaceRows(h) {
+  const results = h.results ?? h.podium ?? [];
+  const winnerTime = results[0]?.time ?? 0;
+  return results.map((r, i) => {
+    const m = marbleById(r.id);
+    return `<div class="result-row"><b>${r.position ?? i + 1}</b><i style="background:${m?.color ?? '#fff'}"></i><span>${esc(m?.name ?? r.id)}</span><em>${Number.isFinite(r.time) ? formatTime(r, winnerTime) : (r.dnf ? 'DNF' : '—')}</em></div>`;
+  }).join('');
+}
+
+function historyStandingRows(h) {
+  if (!h.standings?.length) return '<div class="history-unavailable">Championship snapshot is available for races completed from v0.1.1 onward.</div>';
+  return h.standings.map((r, i) => {
+    const m = marbleById(r.id);
+    return `<div class="history-standing"><b>${r.position ?? i + 1}</b><i style="background:${m?.color ?? '#fff'}"></i><span>${esc(m?.name ?? r.id)}<small>${r.wins ?? 0} W · ${r.podiums ?? 0} podiums</small></span><strong>${r.points ?? 0}<small> pts</small></strong></div>`;
+  }).join('');
+}
+
+function openHistory(index) {
+  const h = save.history[index];
+  if (!h) return;
+  const results = h.results ?? h.podium ?? [];
+  const fullAvailable = (h.results?.length ?? 0) > (h.podium?.length ?? 0);
+  const sheet = $('#resultsSheet');
+  sheet.innerHTML = `
+    <div class="sheet-handle"></div>
+    <div class="sheet-head"><div><div class="eyebrow">S${h.season} · ROUND ${h.round} · ${esc(formatLabel(h.format))}</div><h2>${esc(h.title)}</h2><p>Seed ${esc(h.seed)}</p></div></div>
+    <div class="history-section-title"><span>RACE CLASSIFICATION</span><b>${results.length} MARBLES</b></div>
+    <div class="result-list">${historyRaceRows(h)}</div>
+    ${fullAvailable ? '' : '<div class="history-unavailable">Older saved races only kept the podium. New races now store the complete classification.</div>'}
+    <div class="history-section-title"><span>CHAMPIONSHIP AFTER ROUND ${h.round}</span><b>SEASON ${h.season}</b></div>
+    <div class="history-table">${historyStandingRows(h)}</div>
+    <button class="primary big" id="closeHistory">CLOSE</button>`;
+  sheet.classList.add('open');
+  $('#closeHistory').addEventListener('click', () => sheet.classList.remove('open'));
 }
 
 function renderSettings() {

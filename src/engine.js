@@ -261,22 +261,27 @@ export class MarbleEngine {
     this.trackBodies.push(body);
   }
 
-  addBumpBar(z, radius = 0.22, color = COLORS.yellow) {
-    const y = this.trackY(z) + radius + 0.08;
+  addBumpBar(z, radius = 0.18, color = COLORS.yellow, offset = 0) {
+    // A speed bump must create chaos, never a wall. Keep it low and leave
+    // generous escape lanes on both sides (well over one marble diameter).
+    const safeRadius = Math.min(radius, 0.20);
+    const barLen = WIDTH - 3.25;
+    const safeOffset = Math.max(-0.32, Math.min(0.32, offset));
+    const y = this.trackY(z) + safeRadius + 0.045;
     const mesh = new THREE.Mesh(
-      new THREE.CylinderGeometry(radius, radius, WIDTH - 1.0, 12),
+      new THREE.CylinderGeometry(safeRadius, safeRadius, barLen, 12),
       new THREE.MeshStandardMaterial({ color, roughness: 0.4, metalness: 0.05 })
     );
-    mesh.position.set(0, y, z);
+    mesh.position.set(safeOffset, y, z);
     mesh.rotation.z = Math.PI / 2;
     mesh.castShadow = true;
     this.trackGroup.add(mesh);
     const body = new CANNON.Body({ mass: 0, material: this.obstacleMaterial });
-    const shape = new CANNON.Cylinder(radius, radius, WIDTH - 1.0, 12);
+    const shape = new CANNON.Cylinder(safeRadius, safeRadius, barLen, 12);
     const q = new CANNON.Quaternion();
     q.setFromEuler(0, 0, Math.PI / 2);
     body.addShape(shape, new CANNON.Vec3(), q);
-    body.position.set(0, y, z);
+    body.position.set(safeOffset, y, z);
     this.world.addBody(body);
     this.trackBodies.push(body);
   }
@@ -382,7 +387,7 @@ export class MarbleEngine {
 
     switch (module.type) {
       case 'straight':
-        if (module.index > 0) this.addBumpBar(center, 0.12, colorA);
+        if (module.index > 0) this.addBumpBar(center, 0.12, colorA, jitter(17) * 0.2);
         break;
       case 'slalom':
         for (let i = 0; i < 5; i++) this.addPin((i % 2 ? 2.0 : -2.0) + jitter(i) * 0.6, startZ - 2.2 - i * (span - 4) / 4, 0.34, colorA);
@@ -402,26 +407,28 @@ export class MarbleEngine {
         this.addStaticBox({ x: 0, z: center, w: 0.32, h: 0.85, d: span * 0.58, color: colorA, bounce: false });
         break;
       case 'squeeze':
-        this.addStaticBox({ x: -3.85, z: center - 1.1, w: 2.4, h: 0.9, d: 2.4, color: colorA, rotY: 0.14 });
-        this.addStaticBox({ x: 3.85, z: center + 1.1, w: 2.4, h: 0.9, d: 2.4, color: colorA, rotY: -0.14 });
+        this.addStaticBox({ x: -4.45, z: center - 1.1, w: 2.7, h: 0.82, d: 2.2, color: colorA, rotY: 0.10 });
+        this.addStaticBox({ x: 4.45, z: center + 1.1, w: 2.7, h: 0.82, d: 2.2, color: colorA, rotY: -0.10 });
         break;
       case 'wave':
-        this.addBumpBar(startZ - span * 0.32, 0.2, colorA);
-        this.addBumpBar(startZ - span * 0.5, 0.29, colorA);
-        this.addBumpBar(startZ - span * 0.69, 0.2, colorA);
+        this.addBumpBar(startZ - span * 0.32, 0.15, colorA, -0.28);
+        this.addBumpBar(startZ - span * 0.5, 0.19, colorA, 0.28);
+        this.addBumpBar(startZ - span * 0.69, 0.15, colorA, -0.18);
         break;
       case 'gates':
         this.addMovingGate(startZ - span * 0.37, v * 0.03, 1.05, 2.6, 3.3, colorA);
         this.addMovingGate(startZ - span * 0.68, 1.4 + v * 0.01, 1.3, 2.3, 3.0, COLORS.yellow);
         break;
       case 'stairs':
-        for (let i = 0; i < 5; i++) this.addBumpBar(startZ - 2.2 - i * 1.65, 0.16 + i * 0.025, i % 2 ? colorA : COLORS.dark);
+        for (let i = 0; i < 5; i++) this.addBumpBar(startZ - 2.2 - i * 1.65, 0.13 + i * 0.012, i % 2 ? colorA : COLORS.dark, (i % 2 ? 1 : -1) * 0.28);
         break;
       case 'zigzag':
       case 'switchback':
         for (let i = 0; i < 4; i++) {
           const side = i % 2 ? 1 : -1;
-          this.addStaticBox({ x: side * 2.35, z: startZ - 2.4 - i * (span - 4.8) / 3, w: 4.2, h: 0.62, d: 0.34, color: colorA, rotY: side * 0.36 });
+          // Wall-connected deflectors cannot form a marble-sized pocket
+          // between the obstacle and the rail.
+          this.addStaticBox({ x: side * 4.05, z: startZ - 2.4 - i * (span - 4.8) / 3, w: 3.45, h: 0.56, d: 0.30, color: colorA, rotY: side * 0.28 });
         }
         break;
       case 'gauntlet':
@@ -450,10 +457,10 @@ export class MarbleEngine {
         this.addSidePuncher(startZ - span * 0.62, 1, 0.8, 2.2);
         break;
       case 'dropzone':
-        this.addBumpBar(startZ - span * 0.31, 0.31, colorA);
-        this.addStaticBox({ x: -2.4, z: center, w: 3.1, h: 0.35, d: 1.1, color: COLORS.dark, rotY: 0.15 });
-        this.addStaticBox({ x: 2.4, z: center - 1.9, w: 3.1, h: 0.35, d: 1.1, color: COLORS.dark, rotY: -0.15 });
-        this.addBumpBar(startZ - span * 0.76, 0.24, COLORS.yellow);
+        this.addBumpBar(startZ - span * 0.31, 0.18, colorA, -0.22);
+        this.addStaticBox({ x: -4.15, z: center, w: 3.0, h: 0.34, d: 1.0, color: COLORS.dark, rotY: 0.12 });
+        this.addStaticBox({ x: 4.15, z: center - 1.9, w: 3.0, h: 0.34, d: 1.0, color: COLORS.dark, rotY: -0.12 });
+        this.addBumpBar(startZ - span * 0.76, 0.16, COLORS.yellow, 0.22);
         break;
       case 'finale':
         for (let i = 0; i < 3; i++) this.addPin((i - 1) * 2.1, center - i * 0.45, 0.28, colorA);
@@ -571,7 +578,7 @@ export class MarbleEngine {
 
       this.marbles.push({
         data: m, body, mesh, startIndex: i, finished: false, finishTime: null,
-        dnf: false, hiddenAt: null, lastProgressZ: z, stuckTime: 0, rescues: 0,
+        dnf: false, hiddenAt: null, lastProgressZ: z, stuckTime: 0, nudged: false, rescues: 0,
       });
     }
     this.syncMeshes();
@@ -589,6 +596,7 @@ export class MarbleEngine {
       item.dnf = false;
       item.hiddenAt = null;
       item.stuckTime = 0;
+      item.nudged = false;
       item.rescues = 0;
       item.body.wakeUp();
       item.body.velocity.set((this.raceRng() - 0.5) * 0.03, 0, -0.02);
@@ -623,15 +631,19 @@ export class MarbleEngine {
       const out = Math.abs(body.position.x) > WIDTH / 2 + 1.6 || body.position.y < expectedY - 2.6 || body.position.z > 7;
       if (out) this.rescue(item, true);
 
-      if (body.position.z < item.lastProgressZ - 0.85) {
+      if (body.position.z < item.lastProgressZ - 0.38) {
         item.lastProgressZ = body.position.z;
         item.stuckTime = 0;
+        item.nudged = false;
       } else {
         item.stuckTime += dt;
-        if (item.stuckTime > 2.5 && item.stuckTime < 4.5 && body.velocity.length() < 1.1) {
-          body.applyImpulse(new CANNON.Vec3((this.raceRng() - 0.5) * 0.8, 0.4, -1.8), body.position);
+        // One nudge only. The old implementation could impulse every frame,
+        // producing the visible forward/backward ping-pong around obstacles.
+        if (item.stuckTime > 1.25 && !item.nudged && body.velocity.length() < 1.35) {
+          item.nudged = true;
+          body.applyImpulse(new CANNON.Vec3((this.raceRng() - 0.5) * 0.6, 0.18, -1.45), body.position);
         }
-        if (item.stuckTime >= 4.8) this.rescue(item, false);
+        if (item.stuckTime >= 2.75) this.rescue(item, false);
       }
 
       if (body.position.z <= this.finishZ) this.finishMarble(item, false);
@@ -658,6 +670,7 @@ export class MarbleEngine {
     item.body.angularVelocity.set(0, 0, 0);
     item.lastProgressZ = z;
     item.stuckTime = 0;
+    item.nudged = false;
     item.body.wakeUp();
   }
 

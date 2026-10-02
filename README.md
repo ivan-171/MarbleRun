@@ -1,4 +1,4 @@
-# MarbleForge v0.1.0
+# MarbleForge v0.1.1
 
 A mobile-first procedural 3D marble racing league built for static hosting (including GitHub Pages).
 
@@ -16,6 +16,8 @@ A mobile-first procedural 3D marble racing league built for static hosting (incl
 - JSON export/import backup.
 - PWA manifest and service worker; designed to be added to the iPhone Home Screen.
 - No backend and no build step required.
+- v0.1.1 anti-trap pass: low side-gapped bump bars, wall-connected deflectors, one-shot nudges, and faster forward rescues.
+- Race-history cards open the full race classification and the championship table as it stood after that round.
 
 ## GitHub Pages deployment
 
@@ -64,6 +66,6 @@ npm run check
 
 All marbles use the same radius, mass, material, damping, and collision rules. Identity comes from visuals and history rather than hidden performance stats. Track generation is seeded, and physics-side rescue/nudge randomness is also seeded so a race setup is reproducible as far as the browser physics engine allows. Floating-point physics can still vary slightly between browsers/devices, so exact finishing order should not be treated as cryptographically deterministic across different hardware.
 
-## Current v0.1 boundaries
+## Current v0.1.1 boundaries
 
 This is a complete first playable build, not the final content ceiling. The 20 module archetypes reuse a compact set of reliable physical primitives (pins, gates, spinners, bump bars, dividers, moving punchers, etc.) so races remain stable on phones. Future versions can add bespoke meshes, sound, championships with custom rules, track editor tools, more camera cuts, and true replay files without changing the save/season core.

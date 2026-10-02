@@ -72,3 +72,15 @@ test('new season resets season standings but keeps career', () => {
 test('invalid imported save is rejected', () => {
   assert.throws(() => importSave('{"hello":"world"}'));
 });
+
+test('history stores complete race classification and season-table snapshot', () => {
+  const save = createNewSave('HISTORY-TEST');
+  const event = save.schedule[0];
+  const results = save.marbles.map((m, i) => ({ id: m.id, time: 10 + i, gain: 0, dnf: false, rescues: 0 }));
+  applyRaceResults(save, event, results);
+  assert.equal(save.history.length, 1);
+  assert.equal(save.history[0].results.length, save.marbles.length);
+  assert.equal(save.history[0].standings.length, save.marbles.length);
+  assert.equal(save.history[0].standings[0].id, save.marbles[0].id);
+  assert.equal(save.history[0].standings[0].points, 25);
+});

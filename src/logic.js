@@ -1,4 +1,4 @@
-export const GAME_VERSION = '0.1.0';
+export const GAME_VERSION = '0.1.1';
 export const STORAGE_KEY = 'marbleforge-save-v1';
 
 export const FORMATS = {
@@ -202,6 +202,14 @@ export function applyRaceResults(save, event, orderedResults) {
   event.completed = true;
   event.results = orderedResults.map((r, idx) => ({ ...r, position: idx + 1 }));
   event.title = buildHeadline(save, event, orderedResults);
+  const standingsSnapshot = getStandings(save).map((m, idx) => ({
+    id: m.id,
+    position: idx + 1,
+    points: m.stats.points,
+    wins: m.stats.wins,
+    podiums: m.stats.podiums,
+    bestFinish: m.stats.bestFinish,
+  }));
   save.history.unshift({
     season: save.season,
     round: event.round,
@@ -209,6 +217,8 @@ export function applyRaceResults(save, event, orderedResults) {
     seed: event.seed,
     title: event.title,
     podium: event.results.slice(0, 3),
+    results: event.results.map(r => ({ ...r })),
+    standings: standingsSnapshot,
     timestamp: Date.now(),
   });
   save.history = save.history.slice(0, 60);

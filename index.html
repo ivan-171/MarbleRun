@@ -1,0 +1,101 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover,user-scalable=no">
+  <meta name="theme-color" content="#11151d">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="MarbleForge">
+  <meta name="description" content="A procedural 3D marble racing league for the browser.">
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="apple-touch-icon" href="./assets/icon-180.png">
+  <link rel="icon" href="./assets/icon-192.png">
+  <link rel="stylesheet" href="./styles.css">
+  <title>MarbleForge</title>
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://cdn.jsdelivr.net/npm/three@0.186.1/build/three.module.js",
+      "cannon-es": "https://cdn.jsdelivr.net/npm/cannon-es@0.20.0/dist/cannon-es.js"
+    }
+  }
+  </script>
+</head>
+<body>
+  <div id="app">
+    <header class="topbar">
+      <div class="brand"><span class="brand-ball"></span><strong>MARBLE<span>FORGE</span></strong></div>
+      <div class="season-meta"><span id="seasonLabel">SEASON 1</span><b id="roundLabel">1/16</b><small id="saveState">Saved</small></div>
+    </header>
+
+    <main class="stage">
+      <div id="viewport3d" class="viewport"></div>
+      <div id="loadingBadge" class="loading-badge">BUILDING TRACK…</div>
+
+      <section id="raceOverlay" class="race-overlay">
+        <div id="raceHome" class="race-home"></div>
+        <div id="countdown" class="countdown">3</div>
+        <div id="raceHud" class="race-hud hidden">
+          <div class="hud-top">
+            <div><small id="hudRaceTitle">Classic</small><b id="raceTime">0.0s</b></div>
+            <div class="progress"><i id="progressFill"></i></div>
+          </div>
+          <div id="liveBoard" class="live-board"></div>
+        </div>
+        <div id="raceControls" class="race-controls hidden">
+          <div class="segmented"><button data-speed="1">1×</button><button data-speed="2">2×</button><button data-speed="4">4×</button></div>
+          <div class="segmented camera"><button data-camera="auto">AUTO</button><button data-camera="leader">LEADER</button><button data-camera="overview">TOP</button></div>
+        </div>
+      </section>
+
+      <section id="panel-standings" class="content-panel">
+        <div class="panel-title"><div><small>CHAMPIONSHIP</small><h1>Standings</h1></div><span>Season points</span></div>
+        <div id="standingsList" class="standings-list"></div>
+      </section>
+
+      <section id="panel-marbles" class="content-panel">
+        <div class="panel-title"><div><small>ROSTER</small><h1>Marbles</h1></div><span>Equal physics · unique identity</span></div>
+        <div id="marbleGrid" class="marble-grid"></div>
+      </section>
+
+      <section id="panel-history" class="content-panel">
+        <div class="panel-title"><div><small>ARCHIVE</small><h1>Race history</h1></div><span>Seeds are replayable</span></div>
+        <div id="historyList" class="history-list"></div>
+      </section>
+
+      <section id="panel-settings" class="content-panel">
+        <div class="panel-title"><div><small>LOCAL APP</small><h1>Settings</h1></div><span>No account required</span></div>
+        <div id="settingsBody" class="settings-body"></div>
+      </section>
+    </main>
+
+    <nav class="bottom-nav" aria-label="Main navigation">
+      <button class="nav-btn active" data-view="race"><span>◉</span>RACE</button>
+      <button class="nav-btn" data-view="standings"><span>≡</span>TABLE</button>
+      <button class="nav-btn" data-view="marbles"><span>●</span>MARBLES</button>
+      <button class="nav-btn" data-view="history"><span>↺</span>HISTORY</button>
+      <button class="nav-btn" data-view="settings"><span>⚙</span>MORE</button>
+    </nav>
+  </div>
+
+  <div id="resultsSheet" class="results-sheet"></div>
+
+  <div id="editorModal" class="modal">
+    <div class="modal-card">
+      <button id="closeEditor" class="icon-btn">×</button>
+      <div class="eyebrow">CUSTOMIZE MARBLE</div>
+      <div id="editorPreview" class="editor-preview" style="--c:#ff4d6d"><b>1</b></div>
+      <label>Name<input id="editName" maxlength="22" autocomplete="off"></label>
+      <div class="field-row"><label>Color<input id="editColor" type="color"></label><label>Number<input id="editNumber" type="number" min="0" max="999"></label></div>
+      <label>Logo image<input id="editLogo" type="file" accept="image/*"></label>
+      <small class="help">The image is cropped to a square and stored only on this device.</small>
+      <div class="modal-actions"><button id="cancelEditor" class="secondary">CANCEL</button><button id="saveEditor" class="primary">SAVE MARBLE</button></div>
+    </div>
+  </div>
+
+  <div id="toast" class="toast"></div>
+
+  <script type="module" src="./src/app.js"></script>
+</body>
+</html>

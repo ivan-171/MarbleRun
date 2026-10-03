@@ -513,5 +513,16 @@ renderAll();
 preparePreview(true);
 
 if ('serviceWorker' in navigator && location.protocol.startsWith('http')) {
-  window.addEventListener('load', () => navigator.serviceWorker.register('./sw.js').catch(() => {}));
+  let swRefreshing = false;
+  navigator.serviceWorker.addEventListener('controllerchange', () => {
+    if (swRefreshing) return;
+    swRefreshing = true;
+    location.reload();
+  });
+  window.addEventListener('load', async () => {
+    try {
+      const reg = await navigator.serviceWorker.register('./sw.js', { updateViaCache: 'none' });
+      await reg.update();
+    } catch (_) {}
+  });
 }

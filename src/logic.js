@@ -1,4 +1,4 @@
-export const GAME_VERSION = '0.1.1';
+export const GAME_VERSION = '0.1.2';
 export const STORAGE_KEY = 'marbleforge-save-v1';
 
 export const FORMATS = {
@@ -11,7 +11,7 @@ export const FORMATS = {
 
 export const MODULE_TYPES = [
   'straight','slalom','pinball','spinner','split','squeeze','wave','gates','bumpers','stairs',
-  'zigzag','double-spinner','gauntlet','tunnel','crossfire','switchback','clover','punchers','dropzone','finale'
+  'zigzag','double-spinner','gauntlet','tunnel','crossfire','switchback','spiral','clover','punchers','dropzone','finale'
 ];
 
 const DEFAULT_COLORS = [
@@ -114,8 +114,8 @@ export function createNewSave(seed = `MF-${Date.now()}`) {
 
 function weightedModulePool(formatId) {
   const safe = ['straight','slalom','split','squeeze','wave','tunnel','switchback'];
-  const medium = ['pinball','spinner','gates','bumpers','zigzag','clover','stairs'];
-  const wild = ['double-spinner','gauntlet','crossfire','punchers','dropzone'];
+  const medium = ['pinball','spinner','gates','bumpers','zigzag','clover','stairs','tunnel'];
+  const wild = ['double-spinner','gauntlet','crossfire','punchers','dropzone','switchback','spiral'];
   if (formatId === 'sprint') return [...safe, ...safe, ...medium];
   if (formatId === 'chaos') return [...medium, ...medium, ...wild, ...wild, ...safe];
   if (formatId === 'endurance') return [...safe, ...medium, ...medium, ...wild];
@@ -145,6 +145,7 @@ export function generateTrackPlan(seed, formatId = 'classic') {
       intensity: +(0.7 + rng() * 0.7 * format.danger).toFixed(2),
       spin: rng() < 0.5 ? -1 : 1,
       offset: +(rng() * 2 - 1).toFixed(3),
+      curve: +(rng() * 2 - 1).toFixed(3),
     });
   }
   const namesA = ['Neon','Crystal','Turbo','Velvet','Midnight','Solar','Lucky','Electric','Royal','Plastic','Meteor','Candy'];
@@ -157,6 +158,79 @@ export function generateTrackPlan(seed, formatId = 'classic') {
     totalLength: modules.reduce((n, m) => n + m.length, 0),
     danger: Math.min(5, Math.max(1, Math.round(1.5 + format.danger * 1.7 + rng() * 1.3))),
   };
+}
+
+
+
+/**
+ * Build a deterministic, always-descending 3D centreline for a track plan.
+ * Z is deliberately monotonic so race progress and rescues remain robust,
+ * while X bends from module to module and Y only ever moves downhill.
+ */
+export function generateTrackPath(plan, options = {}) {
+  const startY = Number.isFinite(options.startY) ? options.startY : 4.1;
+  const slope = Number.isFinite(options.slope) ? options.slope : 0.135;
+  const maxX = Number.isFinite(options.maxX) ? options.maxX : 13.5;
+  const samples = [
+    { x: 0, y: startY + slope * 5, z: 5, moduleIndex: -1 },
+    { x: 0, y: startY, z: 0, moduleIndex: -1 },
+  ];
+  let cursor = 0;
+  let currentX = 0;
+  let currentY = startY;
+
+  const smooth = t => t * t * (3 - 2 * t);
+  const clamp = (n, a, b) => Math.max(a, Math.min(b, n));
+
+  for (const module of plan.modules) {
+    const len = module.length;
+    const startZ = -cursor;
+    const startX = currentX;
+    const startModuleY = currentY;
+    const rawCurve = Number.isFinite(module.curve) ? module.curve : (module.offset ?? 0);
+    let strength = 3.1;
+    if (module.type === 'straight' || module.type === 'finale') strength = 0.85;
+    if (module.type === 'tunnel') strength = 2.4;
+    if (module.type === 'switchback') strength = 5.4;
+    if (module.type === 'spiral') strength = 1.8;
+
+    let delta = rawCurve * strength;
+    // Tracks should roam, not keep walking off in the same direction forever.
+    if (Math.abs(startX) > maxX * 0.72 && Math.sign(delta) === Math.sign(startX)) {
+      delta *= -1;
+    }
+    let targetX = clamp(startX + delta, -maxX, maxX);
+    const baseDrop = slope * len;
+    const extraDrop = module.type === 'dropzone' ? 1.7 : module.type === 'spiral' ? 0.55 : 0;
+    const stepSize = module.type === 'spiral' ? 1.55 : module.type === 'switchback' ? 1.8 : 2.75;
+    const steps = Math.max(5, Math.ceil(len / stepSize));
+
+    for (let j = 1; j <= steps; j++) {
+      const t = j / steps;
+      const e = smooth(t);
+      let x = startX + (targetX - startX) * e;
+
+      // Broad S bends make switchbacks visible without ever reversing Z.
+      if (module.type === 'switchback') {
+        x += module.spin * 3.4 * Math.sin(Math.PI * t);
+      }
+      // A descending corkscrew/chute: two lateral sweeps while continuing downhill.
+      if (module.type === 'spiral') {
+        x += module.spin * 3.6 * Math.sin(Math.PI * 2 * t) * Math.sin(Math.PI * t);
+      }
+
+      x = clamp(x, -maxX - 1.5, maxX + 1.5);
+      const z = startZ - len * t;
+      const y = startModuleY - baseDrop * t - extraDrop * e;
+      samples.push({ x, y, z, moduleIndex: module.index });
+    }
+
+    currentX = targetX;
+    currentY = startModuleY - baseDrop - extraDrop;
+    cursor += len;
+  }
+
+  return samples;
 }
 
 export function getStandings(save) {

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  rngFromSeed, generateTrackPlan, createNewSave, applyRaceResults, getStandings, MODULE_TYPES
+  rngFromSeed, generateTrackPlan, generateTrackPath, createNewSave, applyRaceResults, getStandings, MODULE_TYPES
 } from '../src/logic.js';
 
 test('seeded RNG is deterministic', () => {
@@ -83,4 +83,36 @@ test('history stores complete race classification and season-table snapshot', ()
   assert.equal(save.history[0].standings.length, save.marbles.length);
   assert.equal(save.history[0].standings[0].id, save.marbles[0].id);
   assert.equal(save.history[0].standings[0].points, 25);
+});
+
+
+test('procedural 3D paths always descend while producing real lateral curves', () => {
+  let curvedTracks = 0;
+  for (let i = 0; i < 300; i++) {
+    const plan = generateTrackPlan(`3d-path-${i}`, i % 2 ? 'classic' : 'chaos');
+    const path = generateTrackPath(plan);
+    assert.ok(path.length > plan.modules.length * 4);
+    let lateralTravel = 0;
+    for (let j = 1; j < path.length; j++) {
+      assert.ok(path[j].z < path[j - 1].z, 'z progress must never reverse');
+      assert.ok(path[j].y <= path[j - 1].y + 1e-9, 'track must never climb uphill');
+      const dx = Math.abs(path[j].x - path[j - 1].x);
+      lateralTravel += dx;
+      assert.ok(dx < 3.25, `adjacent track slices must remain smooth: ${dx}`);
+    }
+    if (lateralTravel > 4) curvedTracks++;
+  }
+  assert.ok(curvedTracks > 250, 'most generated tracks should visibly curve');
+});
+
+test('spiral and switchback modules preserve descending progress', () => {
+  const plan = generateTrackPlan('forced-curves', 'classic');
+  plan.modules[2] = { ...plan.modules[2], type: 'switchback', spin: 1, curve: 0.7 };
+  plan.modules[3] = { ...plan.modules[3], type: 'spiral', spin: -1, curve: -0.4 };
+  const path = generateTrackPath(plan);
+  for (let i = 1; i < path.length; i++) {
+    assert.ok(path[i].z < path[i - 1].z);
+    assert.ok(path[i].y <= path[i - 1].y + 1e-9);
+  }
+  assert.ok(Math.max(...path.map(p => p.x)) - Math.min(...path.map(p => p.x)) > 5);
 });

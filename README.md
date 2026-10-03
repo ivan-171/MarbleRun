@@ -1,4 +1,4 @@
-# MarbleForge v0.1.1
+# MarbleForge v0.1.2
 
 A mobile-first procedural 3D marble racing league built for static hosting (including GitHub Pages).
 
@@ -6,7 +6,7 @@ A mobile-first procedural 3D marble racing league built for static hosting (incl
 
 - 3D marble racing rendered with Three.js and simulated with cannon-es.
 - 16 physically identical marbles with editable name, number, color, and uploaded logo.
-- 20 procedural module archetypes assembled from a seeded track plan.
+- 21 procedural module archetypes assembled from a seeded track plan.
 - Classic, Sprint, Chaos, Endurance, and multi-heat Elimination formats.
 - Elimination runs 16 → 12 → 8 → 4 before the final.
 - Auto, leader, overview, and tap-to-follow cameras.
@@ -16,8 +16,20 @@ A mobile-first procedural 3D marble racing league built for static hosting (incl
 - JSON export/import backup.
 - PWA manifest and service worker; designed to be added to the iPhone Home Screen.
 - No backend and no build step required.
-- v0.1.1 anti-trap pass: low side-gapped bump bars, wall-connected deflectors, one-shot nudges, and faster forward rescues.
+- v0.1.2 track/physics pass: true procedural 3D centreline curves, always-descending switchbacks and spiral chutes, much smaller lane obstacles, corrected downstream funnel geometry, livelier collisions, and faster directional rescues.
 - Race-history cards open the full race classification and the championship table as it stood after that round.
+
+
+### v0.1.2 changes
+
+- Track centreline is now genuinely procedural in 3D: broad curves, switchbacks, a descending spiral/corkscrew-style chute and steeper drop modules.
+- Every generated path is monotonic downhill: it never needs an uphill section or backward Z segment to create variety.
+- Cross-track logs were replaced by short lane-sized bump bars so most marbles can pass untouched.
+- Zig-zag/funnel deflectors now point downstream; the inverse-funnel rotation from v0.1.1 is removed.
+- Smaller spinners/gates/punchers and more open lanes reduce pile-ups.
+- Obstacle restitution is higher and friction/damping lower, so impacts redirect marbles instead of killing nearly all momentum.
+- Anti-stuck nudges/rescues follow the local direction of the curved track rather than blindly pushing toward global -Z.
+- Home Screen PWA updates use network-first app-shell files plus forced service-worker update checks, so code updates should no longer require deleting/re-adding the icon.
 
 ## GitHub Pages deployment
 
@@ -29,7 +41,7 @@ A mobile-first procedural 3D marble racing league built for static hosting (incl
 6. Open the GitHub Pages URL on iPhone Safari.
 7. Optional: Share → **Add to Home Screen** for the standalone app experience.
 
-The app imports pinned versions of Three.js (`0.186.1`) and cannon-es (`0.20.0`) from jsDelivr. The first visit therefore needs a network connection. The service worker caches fetched resources for later use.
+The app imports pinned versions of Three.js (`0.186.1`) and cannon-es (`0.20.0`) from jsDelivr. The first visit therefore needs a network connection. The service worker caches fetched resources for later use and uses network-first HTML/JS/CSS updates so an installed iPhone Home Screen app can update without deleting and recreating its icon.
 
 ## Local development
 
@@ -66,6 +78,6 @@ npm run check
 
 All marbles use the same radius, mass, material, damping, and collision rules. Identity comes from visuals and history rather than hidden performance stats. Track generation is seeded, and physics-side rescue/nudge randomness is also seeded so a race setup is reproducible as far as the browser physics engine allows. Floating-point physics can still vary slightly between browsers/devices, so exact finishing order should not be treated as cryptographically deterministic across different hardware.
 
-## Current v0.1.1 boundaries
+## Current v0.1.2 boundaries
 
-This is a complete first playable build, not the final content ceiling. The 20 module archetypes reuse a compact set of reliable physical primitives (pins, gates, spinners, bump bars, dividers, moving punchers, etc.) so races remain stable on phones. Future versions can add bespoke meshes, sound, championships with custom rules, track editor tools, more camera cuts, and true replay files without changing the save/season core.
+This is a complete first playable build, not the final content ceiling. The 21 module archetypes reuse a compact set of reliable physical primitives (pins, gates, spinners, bump bars, dividers, moving punchers, etc.) so races remain stable on phones. Future versions can add bespoke meshes, sound, championships with custom rules, track editor tools, more camera cuts, and true replay files without changing the save/season core.
